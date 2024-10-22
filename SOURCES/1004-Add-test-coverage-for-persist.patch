@@ -1,0 +1,89 @@
+From 87b326cb0a16b8810648e4fd18cd4113f79419a4 Mon Sep 17 00:00:00 2001
+From: sagar sagar <sagar.sagar@oracle.com>
+Date: Tue, 17 Sep 2024 14:04:50 +0000
+Subject: [PATCH 4/5] Add test coverage for --persist This adds three
+ "positive" tests: the common case --persist=.persist, the deprecated spelling
+ --persist=/.persist, and the less common special case --persist=. as used by
+ Steam.
+
+It also adds "negative" tests for CVE-2024-42472: if the --persist
+directory is a symbolic link or contains path segment "..", we want that
+to be rejected.
+
+Reproduces: CVE-2024-42472
+[smcv: Add "positive" tests]
+[smcv: Exercise --persist=..]
+[smcv: Assert that --persist with a symlink produces expected message]
+Co-authored-by: Simon McVittie <smcv@collabora.com>
+Signed-off-by: Simon McVittie <smcv@collabora.com>
+
+upstream ref:- 2cdd1e1e5ae90d7c3a4b60ce2e36e4d609e44e72
+Orabug: 37027734
+Signed-off-by: sagar sagar <sagar.sagar@oracle.com>
+---
+ tests/test-run.sh | 43 +++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 41 insertions(+), 2 deletions(-)
+
+diff --git a/tests/test-run.sh b/tests/test-run.sh
+index 7375b2e..375e26c 100755
+--- a/tests/test-run.sh
++++ b/tests/test-run.sh
+@@ -23,7 +23,7 @@ set -euo pipefail
+ 
+ skip_without_bwrap
+ 
+-echo "1..14"
++echo "1..15"
+ 
+ setup_repo
+ install_repo
+@@ -382,4 +382,43 @@ echo "ok no setuid"
+ echo "foobar" > file-data
+ $RUN --proc /proc --dev /dev --bind / / --bind-fd 100 /tmp cat /tmp/file-data 100< . > stdout
+ assert_file_has_content stdout foobar
+-echo "ok - bind-fd"
+\ No newline at end of file
++echo "ok - bind-fd"
++
++rm -fr "$HOME/.var/app/org.test.Hello"
++mkdir -p "$HOME/.var/app/org.test.Hello"
++run --command=sh --persist=.persist org.test.Hello -c 'echo can-persist > .persist/rc'
++sed -e 's,^,#--persist=.persist# ,g' < "$HOME/.var/app/org.test.Hello/.persist/rc" >&2
++assert_file_has_content "$HOME/.var/app/org.test.Hello/.persist/rc" "can-persist"
++
++ok "--persist=.persist persists a directory"
++
++rm -fr "$HOME/.var/app/org.test.Hello"
++mkdir -p "$HOME/.var/app/org.test.Hello"
++# G_DEBUG= to avoid the deprecation warning being fatal
++G_DEBUG= run --command=sh --persist=/.persist org.test.Hello -c 'echo can-persist > .persist/rc'
++sed -e 's,^,#--persist=/.persist# ,g' < "$HOME/.var/app/org.test.Hello/.persist/rc" >&2
++assert_file_has_content "$HOME/.var/app/org.test.Hello/.persist/rc" "can-persist"
++
++ok "--persist=/.persist is a deprecated form of --persist=.persist"
++
++rm -fr "$HOME/.var/app/org.test.Hello"
++mkdir -p "$HOME/.var/app/org.test.Hello"
++run --command=sh --persist=. org.test.Hello -c 'echo can-persist > .persistrc'
++sed -e 's,^,#--persist=.# ,g' < "$HOME/.var/app/org.test.Hello/.persistrc" >&2
++assert_file_has_content "$HOME/.var/app/org.test.Hello/.persistrc" "can-persist"
++
++ok "--persist=. persists all files"
++
++mkdir "${TEST_DATA_DIR}/inaccessible"
++echo FOO > ${TEST_DATA_DIR}/inaccessible/secret-file
++rm -fr "$HOME/.var/app/org.test.Hello"
++mkdir -p "$HOME/.var/app/org.test.Hello"
++ln -fns "${TEST_DATA_DIR}/inaccessible" "$HOME/.var/app/org.test.Hello/persist"
++# G_DEBUG= to avoid the warnings being fatal when we reject a --persist option.
++# LC_ALL=C so we get the expected non-localized string.
++LC_ALL=C G_DEBUG= run --command=ls --persist=persist --persist=relative/../escape org.test.Hello -la ~/persist &> hello_out || true
++sed -e 's,^,#--persist=symlink# ,g' < hello_out >&2
++assert_file_has_content hello_out "not allowed to avoid sandbox escape"
++assert_not_file_has_content hello_out "secret-file"
++
++ok "--persist doesn't allow sandbox escape via a symlink (CVE-2024-42472)"
+\ No newline at end of file
+-- 
+1.8.3.1
+

@@ -1,0 +1,73 @@
+From 962a7f560ee0fa08eb30b0536d4ae9659ceaf163 Mon Sep 17 00:00:00 2001
+From: Alexander Larsson <alexl@redhat.com>
+Date: Wed, 8 May 2019 16:54:55 +0200
+Subject: [PATCH 3/3] update: Fix OCI updates in the system repo
+
+We need to check whether the remote is gpg verified after handling
+the oci case, because OCI is fine to update systemwide without gpg
+verification (in fact it doesn't support verification).
+
+This just reorders the code, matching what is done in the install
+case already.
+
+Closes: #2891
+Approved by: alexlarsson
+
+(cherry picked from commit 4c4c80b85d629bad1a377524b7787200f1c831a0)
+---
+ common/flatpak-dir.c | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/common/flatpak-dir.c b/common/flatpak-dir.c
+index 79fa361d..1fc6a90c 100644
+--- a/common/flatpak-dir.c
++++ b/common/flatpak-dir.c
+@@ -8364,22 +8364,6 @@ flatpak_dir_update (FlatpakDir                           *self,
+       if (no_pull)
+         {
+         }
+-      else if ((!gpg_verify_summary && state->collection_id == NULL) || !gpg_verify)
+-        {
+-          /* The remote is not gpg verified, so we don't want to allow installation via
+-             a download in the home directory, as there is no way to verify you're not
+-             injecting anything into the remote. However, in the case of a remote
+-             configured to a local filesystem we can just let the system helper do
+-             the installation, as it can then avoid network i/o and be certain the
+-             data comes from the right place.
+-
+-             If @collection_id is non-%NULL, we can verify the refs in commit
+-             metadata, so don’t need to verify the summary. */
+-          if (g_str_has_prefix (url, "file:"))
+-            helper_flags |= FLATPAK_HELPER_DEPLOY_FLAGS_LOCAL_PULL;
+-          else
+-            return flatpak_fail_error (error, FLATPAK_ERROR_UNTRUSTED, _("Can't pull from untrusted non-gpg verified remote"));
+-        }
+       else if (is_oci)
+         {
+           g_autoptr(FlatpakOciRegistry) registry = NULL;
+@@ -8396,6 +8380,22 @@ flatpak_dir_update (FlatpakDir                           *self,
+           if (!flatpak_dir_mirror_oci (self, registry, state, ref, NULL, progress, cancellable, error))
+             return FALSE;
+         }
++      else if ((!gpg_verify_summary && state->collection_id == NULL) || !gpg_verify)
++        {
++          /* The remote is not gpg verified, so we don't want to allow installation via
++             a download in the home directory, as there is no way to verify you're not
++             injecting anything into the remote. However, in the case of a remote
++             configured to a local filesystem we can just let the system helper do
++             the installation, as it can then avoid network i/o and be certain the
++             data comes from the right place.
++
++             If @collection_id is non-%NULL, we can verify the refs in commit
++             metadata, so don’t need to verify the summary. */
++          if (g_str_has_prefix (url, "file:"))
++            helper_flags |= FLATPAK_HELPER_DEPLOY_FLAGS_LOCAL_PULL;
++          else
++            return flatpak_fail_error (error, FLATPAK_ERROR_UNTRUSTED, _("Can't pull from untrusted non-gpg verified remote"));
++        }
+       else
+         {
+           /* We're pulling from a remote source, we do the network mirroring pull as a
+-- 
+2.21.0
+

@@ -1,0 +1,41 @@
+From 89ad4251550370da7608b8fc47e70486d39c5f89 Mon Sep 17 00:00:00 2001
+From: sagar sagar <sagar.sagar@oracle.com>
+Date: Tue, 17 Sep 2024 14:23:17 +0000
+Subject: [PATCH 5/5] declaration of function 'g_steal_fd'
+
+Orabug: 37027734
+CVE-2024-42472
+Signed-off-by: sagar sagar <sagar.sagar@oracle.com>
+---
+ libglnx/glnx-backports.h | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/libglnx/glnx-backports.h b/libglnx/glnx-backports.h
+index cd853cc..9b14abb 100644
+--- a/libglnx/glnx-backports.h
++++ b/libglnx/glnx-backports.h
+@@ -43,4 +43,21 @@ gboolean              glnx_set_object  (GObject **object_ptr,
+ 
+ #endif /* !GLIB_CHECK_VERSION(2, 44, 0) */
+ 
++static inline int
++_glnx_steal_fd (int *fdp)
++{
++#if GLIB_CHECK_VERSION(2, 70, 0)
++  /* Allow it to be used without deprecation warnings, even if the target
++   * GLib version is older */
++  G_GNUC_BEGIN_IGNORE_DEPRECATIONS
++  return g_steal_fd (fdp);
++  G_GNUC_END_IGNORE_DEPRECATIONS
++#else
++  int fd = *fdp;
++  *fdp = -1;
++  return fd;
++#endif
++}
++#define g_steal_fd _glnx_steal_fd
++
+ G_END_DECLS
+-- 
+1.8.3.1
+
