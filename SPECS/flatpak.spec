@@ -3,7 +3,7 @@
 
 Name:           flatpak
 Version:        1.12.9
-Release:        3%{?dist}
+Release:        3.1%{?dist}
 Summary:        Application deployment framework for desktop apps
 
 License:        LGPLv2+
@@ -19,6 +19,12 @@ Source1:        flatpak-add-fedora-repos.service
 Patch0:         flatpak-dir-Use-SHA256-not-SHA1-to-name-the-cache-for-a-filt.patch
 # Backported upstream patch for CVE-2024-42472
 Patch1:         flatpak-1.12.x-CVE-2024-42472.patch
+# CVE-2026-34079 part 1 - verbatim from https://git.rockylinux.org/staging/rpms/flatpak/-/raw/818263a3a7a43c4cbaa2b04865d765ea99de06d2/SOURCES/CVE-2026-34079-1-utils-only-remove-cached-files-in-the-cache-directory.patch
+Patch2: flatpak-1.12.9-CVE-2026-34079.patch
+# CVE-2026-34079 part 2 - verbatim from https://git.rockylinux.org/staging/rpms/flatpak/-/raw/818263a3a7a43c4cbaa2b04865d765ea99de06d2/SOURCES/CVE-2026-34079-2-utils-do-not-follow-symlinks-in-local-open-file.patch
+Patch3: flatpak-1.12.9-CVE-2026-34079-2.patch
+# CVE-2026-34079 part 3 - verbatim from https://git.rockylinux.org/staging/rpms/flatpak/-/raw/818263a3a7a43c4cbaa2b04865d765ea99de06d2/SOURCES/CVE-2026-34079-3-system-helper-only-remove-an-ongoing-pull-if-users-match.patch
+Patch4: flatpak-1.12.9-CVE-2026-34079-3.patch
 
 BuildRequires:  pkgconfig(appstream-glib)
 BuildRequires:  pkgconfig(dconf)
@@ -278,6 +284,9 @@ fi
 
 
 %changelog
+* Tue Aug 18 2026 Jason Rodriguez <jrodriguez@ciq.com> - 1.12.9-3.1
+- Fix CVE-2026-34079, CVE-2026-96283, CVE-2026-96284
+
 * Wed Sep 04 2024 Kalev Lember <klember@redhat.com> - 1.12.9-3
 - Fix previous changelog entry
 
